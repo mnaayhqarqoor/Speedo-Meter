@@ -17,9 +17,6 @@
 <!-- الأيقونات -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
-<!-- الخريطة -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-
 <style>
 /* ═══════════════════════════════════════════
    المتغيرات والأساسيات
@@ -575,11 +572,11 @@ body {
 }
 
 /* ═══════════════════════════════════════════
-   الخريطة والرسم البياني
+   الرسم البياني
    ═══════════════════════════════════════════ */
 .bottom-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 16px;
 }
 
@@ -598,14 +595,6 @@ body {
 }
 
 .card-title i { color: var(--cyan); }
-
-#map {
-  height: 320px;
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--bg-3);
-  z-index: 1;
-}
 
 .chart-card {
   display: flex;
@@ -792,7 +781,6 @@ body {
 @media (max-width: 900px) {
   .app-grid { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: repeat(4, 1fr); }
-  .bottom-grid { grid-template-columns: 1fr; }
   .chart-card { min-height: 340px; }
 }
 
@@ -805,7 +793,6 @@ body {
   .header { flex-wrap: wrap; }
   .header-actions { width: 100%; justify-content: flex-end; }
   .speed-value { font-size: clamp(42px, 14vw, 68px); }
-  #map { height: 260px; }
   .chart-card { min-height: 300px; }
   .chart-wrapper { min-height: 260px; }
   .gauge-card { padding: 16px 12px; }
@@ -989,16 +976,8 @@ body {
     </aside>
   </main>
 
-  <!-- الخريطة + الرسم البياني -->
+  <!-- الرسم البياني -->
   <section class="bottom-grid">
-    <div class="card glass">
-      <div class="card-title">
-        <i class="fas fa-map-marked-alt"></i>
-        المسار الحالي
-      </div>
-      <div id="map"></div>
-    </div>
-
     <div class="card glass chart-card">
       <div class="card-title">
         <i class="fas fa-chart-area"></i>
@@ -1037,7 +1016,6 @@ body {
 <!-- ═══════════════════════════════════════════
      مكتبات خارجية
      ═══════════════════════════════════════════ -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <script>
@@ -1055,7 +1033,6 @@ const state = {
   elapsed: 0,
   distance: 0,          // بالكيلومتر
   maxSpeed: 0,          // كم/س
-  path: [],             // [[lat,lng],...]
   speedHistory: [],     // [{t,s}]
   targetSpeed: 0,       // كم/س - الهدف
   displayedSpeed: 0,    // كم/س - المعروض (بعد التنعيم)
@@ -1144,7 +1121,6 @@ function applyTheme(theme) {
   localStorage.setItem('sm_theme', theme);
   const icon = $('themeBtn').querySelector('i');
   icon.className = theme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
-  if (typeof updateMapTiles === 'function') updateMapTiles();
   if (chart) updateChartTheme();
 }
 
@@ -1294,9 +1270,6 @@ function handlePosition(pos) {
   // ─── السرعة القصوى ───
   if (speedKmh > state.maxSpeed) state.maxSpeed = speedKmh;
 
-  // ─── المسار ───
-  state.path.push([coords.latitude, coords.longitude]);
-
   // ─── السرعة المستهدفة ───
   state.targetSpeed = speedKmh;
 
@@ -1305,9 +1278,6 @@ function handlePosition(pos) {
 
   // ─── الإحصائيات ───
   updateStatsDisplay(coords);
-
-  // ─── الخريطة ───
-  updateMapPosition(coords);
 
   // ─── تنبيه السرعة ───
   if (speedKmh > SPEED_LIMIT) triggerSpeedAlert();
@@ -1366,69 +1336,6 @@ function updateStatsDisplay(coords) {
     $('accuracy').textContent = (coords.accuracy != null)
       ? Math.round(coords.accuracy) : '--';
   }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// الخريطة (Leaflet)
-// ═══════════════════════════════════════════════════════════════
-let map, polyline, marker, tileLayer, mapInitialized = false;
-
-function initMap() {
-  if (mapInitialized) return;
-  try {
-    map = L.map('map', {
-      zoomControl: false,
-      attributionControl: false,
-      preferCanvas: true
-    }).setView([24.7136, 46.6753], 5);
-
-    updateMapTiles();
-
-    polyline = L.polyline([], {
-      color: '#00e5ff',
-      weight: 4,
-      opacity: 0.9,
-      lineJoin: 'round'
-    }).addTo(map);
-
-    marker = L.circleMarker([24.7136, 46.6753], {
-      radius: 8,
-      fillColor: '#00e5ff',
-      fillOpacity: 1,
-      color: '#ffffff',
-      weight: 3
-    }).addTo(map);
-
-    mapInitialized = true;
-  } catch (e) {
-    console.warn('Map init failed:', e);
-  }
-}
-
-function updateMapTiles() {
-  if (!map) return;
-  if (tileLayer) map.removeLayer(tileLayer);
-  const url = state.theme === 'light'
-    ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-  tileLayer = L.tileLayer(url, {
-    maxZoom: 19,
-    subdomains: 'abcd',
-    attribution: ''
-  }).addTo(map);
-}
-
-function updateMapPosition(coords) {
-  if (!mapInitialized) return;
-  const latlng = [coords.latitude, coords.longitude];
-
-  if (state.path.length === 1) {
-    map.setView(latlng, 17);
-  } else {
-    map.panTo(latlng, { animate: true, duration: 0.5 });
-  }
-  polyline.addLatLng(latlng);
-  marker.setLatLng(latlng);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1677,7 +1584,6 @@ function resetTrip() {
   state.distance = 0;
   state.maxSpeed = 0;
   state.elapsed = 0;
-  state.path = [];
   state.speedHistory = [];
   state.targetSpeed = 0;
   state.displayedSpeed = 0;
@@ -1695,7 +1601,6 @@ function resetTrip() {
   $('speedValue').textContent = '0';
   updateGPSStatus('', 'غير متصل');
 
-  if (polyline) polyline.setLatLngs([]);
   if (chart) {
     chart.data.labels = [];
     chart.data.datasets[0].data = [];
@@ -1853,7 +1758,7 @@ async function shareTrip() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// PWA: Manifest ديناميكي + Service Worker
+// PWA: Manifest ديناميكي
 // ═══════════════════════════════════════════════════════════════
 function injectManifest() {
   // أيقونة SVG مدمجة
@@ -1903,14 +1808,6 @@ function injectManifest() {
   appleLink.rel = 'apple-touch-icon';
   appleLink.href = iconUrl;
   document.head.appendChild(appleLink);
-}
-
-function registerServiceWorker() {
-  // Service Worker يحتاج ملفاً منفصلاً - نتخطاه هنا مع الحفاظ على إمكانية التثبيت
-  // (Chrome يشترط SW للتثبيت الكامل، لكن "الإضافة إلى الشاشة الرئيسية" تعمل بالـ manifest)
-  if ('serviceWorker' in navigator && location.protocol === 'https:') {
-    // يمكنك لاحقاً إضافة ملف sw.js منفصل
-  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1998,7 +1895,6 @@ window.addEventListener('load', async () => {
 
   // Manifest
   injectManifest();
-  registerServiceWorker();
 
   // ربط الأحداث
   bindEvents();
@@ -2010,7 +1906,6 @@ window.addEventListener('load', async () => {
 
     // تهيئة المكونات (بعد ظهور التطبيق)
     try { initChart(); } catch (e) { console.warn(e); }
-    try { initMap(); } catch (e) { console.warn(e); }
     generateTicks();
 
     // حلقة الرسم
@@ -2020,13 +1915,6 @@ window.addEventListener('load', async () => {
     const perm = await checkPermission();
     if (perm !== 'granted') {
       $('welcome').classList.remove('hidden');
-    } else {
-      // إذا كان الإذن ممنوحاً مسبقاً، اقترح البدء تلقائياً
-      setTimeout(() => {
-        if (!state.isTracking) {
-          // لا نبدأ تلقائياً - نحترم رغبة المستخدم
-        }
-      }, 500);
     }
   }, 1700);
 });
