@@ -1,0 +1,2056 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5">
+<meta name="theme-color" content="#0a0e1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="سبيدو مِتر - عدّاد سرعة GPS احترافي بتصميم عصري">
+<title>سبيدو مِتر | SpeedoMeter</title>
+
+<!-- الخطوط -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+
+<!-- الأيقونات -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+<!-- الخريطة -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+<style>
+/* ═══════════════════════════════════════════
+   المتغيرات والأساسيات
+   ═══════════════════════════════════════════ */
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --bg: #0a0e1a;
+  --bg-2: #131826;
+  --bg-3: #1a2130;
+  --text: #e8ecf4;
+  --text-dim: #8892a8;
+  --glass: rgba(255, 255, 255, 0.05);
+  --glass-2: rgba(255, 255, 255, 0.09);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --cyan: #00e5ff;
+  --purple: #b968ff;
+  --green: #00ff88;
+  --yellow: #ffd700;
+  --orange: #ff8c00;
+  --red: #ff2e63;
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+[data-theme="light"] {
+  --bg: #f0f3fa;
+  --bg-2: #ffffff;
+  --bg-3: #e8ecf6;
+  --text: #0a0e1a;
+  --text-dim: #5a6478;
+  --glass: rgba(255, 255, 255, 0.7);
+  --glass-2: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(10, 14, 26, 0.08);
+  --shadow: 0 8px 32px rgba(10, 14, 26, 0.1);
+}
+
+html { scroll-behavior: smooth; }
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Tajawal', -apple-system, BlinkMacSystemFont, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  transition: background 0.4s ease, color 0.4s ease;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background:
+    radial-gradient(circle at 10% 0%, rgba(0, 229, 255, 0.09), transparent 45%),
+    radial-gradient(circle at 90% 100%, rgba(185, 104, 255, 0.09), transparent 45%),
+    var(--bg);
+  min-height: 100vh;
+  padding: calc(var(--safe-top) + 14px) calc(var(--safe-right) + 14px) calc(var(--safe-bottom) + 14px) calc(var(--safe-left) + 14px);
+}
+
+[data-theme="light"] body {
+  background:
+    radial-gradient(circle at 10% 0%, rgba(0, 229, 255, 0.12), transparent 45%),
+    radial-gradient(circle at 90% 100%, rgba(185, 104, 255, 0.12), transparent 45%),
+    var(--bg);
+}
+
+/* ═══════════════════════════════════════════
+   عناصر مشتركة
+   ═══════════════════════════════════════════ */
+.glass {
+  background: var(--glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+}
+
+.font-num { font-family: 'Orbitron', sans-serif; font-variant-numeric: tabular-nums; }
+
+.hidden { display: none !important; }
+
+/* ═══════════════════════════════════════════
+   Splash Screen
+   ═══════════════════════════════════════════ */
+.splash {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  transition: opacity 0.7s ease, visibility 0.7s ease;
+}
+
+.splash.hidden { opacity: 0; visibility: hidden; }
+
+.splash-logo {
+  text-align: center;
+  animation: fadeInUp 0.9s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.splash-logo i {
+  font-size: 68px;
+  color: var(--cyan);
+  text-shadow: 0 0 50px var(--cyan), 0 0 100px rgba(0, 229, 255, 0.4);
+  margin-bottom: 22px;
+  animation: iconPulse 2s ease-in-out infinite;
+}
+
+@keyframes iconPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+.splash-logo h1 {
+  font-size: 42px;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--cyan), var(--purple));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 6px;
+}
+
+.splash-logo p {
+  color: var(--text-dim);
+  font-family: 'Orbitron', sans-serif;
+  letter-spacing: 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.splash-loader {
+  width: 44px;
+  height: 44px;
+  border: 3px solid var(--glass-border);
+  border-top-color: var(--cyan);
+  border-right-color: var(--purple);
+  border-radius: 50%;
+  margin-top: 44px;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.88); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ═══════════════════════════════════════════
+   Overlay / Welcome
+   ═══════════════════════════════════════════ */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 8, 16, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 500;
+  animation: fadeIn 0.35s ease;
+}
+
+.overlay.hidden { display: none; }
+
+[data-theme="light"] .overlay { background: rgba(200, 210, 230, 0.75); }
+
+@keyframes fadeIn { from { opacity: 0; } }
+
+.welcome-card {
+  padding: 44px 30px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  animation: popIn 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.welcome-icon {
+  font-size: 68px;
+  margin-bottom: 22px;
+  filter: drop-shadow(0 0 30px rgba(0, 229, 255, 0.6));
+  animation: iconPulse 2.4s ease-in-out infinite;
+}
+
+.welcome-card h2 {
+  font-size: 25px;
+  font-weight: 900;
+  margin-bottom: 12px;
+}
+
+.welcome-card p {
+  color: var(--text-dim);
+  margin-bottom: 26px;
+  line-height: 1.7;
+  font-size: 15px;
+}
+
+/* ═══════════════════════════════════════════
+   الأزرار
+   ═══════════════════════════════════════════ */
+.btn-primary {
+  background: linear-gradient(135deg, var(--cyan), var(--purple));
+  color: #0a0e1a;
+  border: none;
+  padding: 15px 28px;
+  border-radius: 14px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 24px rgba(0, 229, 255, 0.35);
+  width: 100%;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0, 229, 255, 0.55);
+}
+
+.btn-primary:active { transform: translateY(0) scale(0.98); }
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--text);
+  padding: 13px 24px;
+  border-radius: 14px;
+  font-family: inherit;
+  font-weight: 500;
+  font-size: 15px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.btn-ghost:hover {
+  background: var(--glass-2);
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.btn-danger {
+  background: rgba(255, 46, 99, 0.12);
+  border: 1px solid rgba(255, 46, 99, 0.4);
+  color: var(--red);
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 16px;
+  transition: all 0.3s ease;
+}
+
+.btn-danger:hover { background: rgba(255, 46, 99, 0.25); }
+
+.icon-btn {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  color: var(--text);
+  min-width: 42px;
+  height: 42px;
+  padding: 0 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.icon-btn:hover {
+  border-color: var(--cyan);
+  color: var(--cyan);
+  background: var(--glass-2);
+  transform: translateY(-1px);
+}
+
+/* ═══════════════════════════════════════════
+   التطبيق الرئيسي
+   ═══════════════════════════════════════════ */
+.app {
+  max-width: 1240px;
+  margin: 0 auto;
+  animation: fadeInUp 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 8px 4px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo i {
+  font-size: 30px;
+  color: var(--cyan);
+  filter: drop-shadow(0 0 12px var(--cyan));
+}
+
+.logo h1 {
+  font-size: 21px;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--cyan), var(--purple));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  line-height: 1.1;
+}
+
+.logo-sub {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px;
+  letter-spacing: 4px;
+  color: var(--text-dim);
+  display: block;
+  margin-top: 3px;
+  font-weight: 700;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* ═══════════════════════════════════════════
+   الشبكة الرئيسية
+   ═══════════════════════════════════════════ */
+.app-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.gauge-card {
+  padding: 22px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.gauge-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(0, 229, 255, 0.06) 0%, transparent 60%);
+  pointer-events: none;
+  animation: rotateSlow 25s linear infinite;
+}
+
+@keyframes rotateSlow { to { transform: rotate(360deg); } }
+
+.gauge-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  aspect-ratio: 1;
+  z-index: 1;
+}
+
+.gauge {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  display: block;
+}
+
+.gauge-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  padding-bottom: 8%;
+}
+
+.speed-value {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(44px, 11vw, 72px);
+  font-weight: 900;
+  line-height: 1;
+  color: var(--green);
+  text-shadow: 0 0 30px currentColor;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.35s ease;
+  letter-spacing: -2px;
+}
+
+.speed-unit {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin-top: 8px;
+  font-weight: 700;
+  letter-spacing: 3px;
+}
+
+.gps-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 18px;
+  font-size: 12px;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.gps-status .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: all 0.3s ease;
+}
+
+.gps-status.active .dot {
+  background: var(--green);
+  box-shadow: 0 0 12px var(--green);
+  animation: pulseDot 1.5s ease-in-out infinite;
+}
+
+.gps-status.searching .dot {
+  background: var(--yellow);
+  box-shadow: 0 0 12px var(--yellow);
+  animation: pulseDot 1.2s ease-in-out infinite;
+}
+
+.gps-status.error .dot {
+  background: var(--red);
+  box-shadow: 0 0 12px var(--red);
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.3); }
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+  margin-top: 22px;
+  width: 100%;
+  max-width: 420px;
+  z-index: 1;
+}
+
+.controls .btn-primary {
+  flex: 2;
+  padding: 16px;
+  font-size: 17px;
+}
+
+.controls .btn-ghost {
+  flex: 1;
+  margin-top: 0;
+  padding: 16px;
+  width: auto;
+}
+
+/* ═══════════════════════════════════════════
+   بطاقات الإحصائيات
+   ═══════════════════════════════════════════ */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.stat-card {
+  padding: 16px 10px;
+  text-align: center;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s ease;
+  cursor: default;
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--cyan);
+}
+
+.stat-icon {
+  font-size: 18px;
+  color: var(--cyan);
+  margin-bottom: 8px;
+  opacity: 0.85;
+}
+
+.stat-value {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+/* ═══════════════════════════════════════════
+   الخريطة والرسم البياني
+   ═══════════════════════════════════════════ */
+.bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.card {
+  padding: 16px;
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-title i { color: var(--cyan); }
+
+#map {
+  height: 320px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-3);
+  z-index: 1;
+}
+
+.chart-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 380px;
+}
+
+.chart-wrapper {
+  position: relative;
+  flex: 1;
+  min-height: 320px;
+}
+
+/* ═══════════════════════════════════════════
+   Toast Notifications
+   ═══════════════════════════════════════════ */
+.toasts {
+  position: fixed;
+  top: calc(var(--safe-top) + 20px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+  width: 90%;
+  max-width: 400px;
+}
+
+.toast {
+  padding: 13px 18px;
+  border-radius: 14px;
+  background: var(--glass-2);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  animation: slideDown 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: auto;
+  line-height: 1.5;
+}
+
+.toast i { font-size: 16px; flex-shrink: 0; }
+
+.toast.success { border-color: var(--green); }
+.toast.success i { color: var(--green); }
+.toast.error { border-color: var(--red); }
+.toast.error i { color: var(--red); }
+.toast.info { border-color: var(--cyan); }
+.toast.info i { color: var(--cyan); }
+.toast.warn { border-color: var(--yellow); }
+.toast.warn i { color: var(--yellow); }
+
+.toast.hide { animation: slideUp 0.4s forwards; }
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  to { opacity: 0; transform: translateY(-24px); }
+}
+
+/* ═══════════════════════════════════════════
+   Modal / History
+   ═══════════════════════════════════════════ */
+.modal {
+  max-width: 520px;
+  width: 100%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  padding: 22px;
+  animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+.modal-header h3 {
+  font-size: 19px;
+  font-weight: 900;
+}
+
+.history-list {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding-left: 4px;
+}
+
+.history-list::-webkit-scrollbar { width: 6px; }
+.history-list::-webkit-scrollbar-track { background: transparent; }
+.history-list::-webkit-scrollbar-thumb {
+  background: var(--glass-2);
+  border-radius: 3px;
+}
+
+.history-item {
+  padding: 13px;
+  border-radius: 12px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  margin-bottom: 10px;
+}
+
+.history-item-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+.history-item-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  text-align: center;
+}
+
+.history-stat-val {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.history-stat-lbl {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.empty-history {
+  text-align: center;
+  color: var(--text-dim);
+  padding: 50px 20px;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.empty-history i {
+  font-size: 40px;
+  opacity: 0.4;
+  display: block;
+  margin-bottom: 14px;
+}
+
+/* ═══════════════════════════════════════════
+   عناصر SVG للعدّاد
+   ═══════════════════════════════════════════ */
+.tick-label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  fill: var(--text-dim);
+  text-anchor: middle;
+  dominant-baseline: middle;
+  font-weight: 700;
+}
+
+.tick-mark {
+  stroke: var(--text-dim);
+  stroke-width: 1.5;
+  opacity: 0.45;
+}
+
+/* ═══════════════════════════════════════════
+   Responsive
+   ═══════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .app-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: repeat(4, 1fr); }
+  .bottom-grid { grid-template-columns: 1fr; }
+  .chart-card { min-height: 340px; }
+}
+
+@media (max-width: 640px) {
+  body {
+    padding: calc(var(--safe-top) + 10px) calc(var(--safe-right) + 10px) calc(var(--safe-bottom) + 10px) calc(var(--safe-left) + 10px);
+  }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .stat-value { font-size: 18px; }
+  .header { flex-wrap: wrap; }
+  .header-actions { width: 100%; justify-content: flex-end; }
+  .speed-value { font-size: clamp(42px, 14vw, 68px); }
+  #map { height: 260px; }
+  .chart-card { min-height: 300px; }
+  .chart-wrapper { min-height: 260px; }
+  .gauge-card { padding: 16px 12px; }
+  .controls { flex-direction: column; }
+  .controls .btn-primary, .controls .btn-ghost { width: 100%; flex: 1; }
+  .logo h1 { font-size: 18px; }
+  .logo i { font-size: 26px; }
+}
+
+@media (max-width: 380px) {
+  .stat-value { font-size: 16px; }
+  .icon-btn { min-width: 38px; height: 38px; font-size: 12px; }
+}
+
+/* منع تحديد النص للسحب */
+.no-select { user-select: none; -webkit-user-select: none; }
+</style>
+</head>
+
+<body>
+
+<!-- ═══════════════════════════════════════════
+     شاشة التحميل
+     ═══════════════════════════════════════════ -->
+<div class="splash" id="splash">
+  <div class="splash-logo">
+    <i class="fas fa-tachometer-alt"></i>
+    <h1>سبيدو مِتر</h1>
+    <p>SpeedoMeter</p>
+  </div>
+  <div class="splash-loader"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     شاشة الترحيب
+     ═══════════════════════════════════════════ -->
+<div class="overlay hidden" id="welcome">
+  <div class="welcome-card glass">
+    <div class="welcome-icon">📍</div>
+    <h2>مرحباً بك في سبيدو مِتر</h2>
+    <p>لتجربة تتبع دقيقة لسرعتك ومسارك، نحتاج إلى الوصول إلى موقعك عبر GPS.</p>
+    <button class="btn-primary" id="startWelcome">
+      <i class="fas fa-location-arrow"></i>
+      ابدأ التتبع
+    </button>
+    <button class="btn-ghost" id="skipWelcome">استكشاف أولاً</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     التطبيق الرئيسي
+     ═══════════════════════════════════════════ -->
+<div class="app hidden" id="app">
+
+  <!-- الهيدر -->
+  <header class="header">
+    <div class="logo">
+      <i class="fas fa-tachometer-alt"></i>
+      <div>
+        <h1>سبيدو مِتر</h1>
+        <span class="logo-sub">SpeedoMeter</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" id="unitBtn" title="تغيير الوحدة">كم/س</button>
+      <button class="icon-btn" id="themeBtn" title="تبديل الثيم">
+        <i class="fas fa-moon"></i>
+      </button>
+      <button class="icon-btn" id="historyBtn" title="الرحلات السابقة">
+        <i class="fas fa-history"></i>
+      </button>
+      <button class="icon-btn" id="shareBtn" title="مشاركة">
+        <i class="fas fa-share-alt"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- العدّاد + الإحصائيات -->
+  <main class="app-grid">
+
+    <!-- بطاقة العدّاد -->
+    <section class="gauge-card glass">
+      <div class="gauge-wrap">
+        <svg class="gauge" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="3.5" result="blur"/>
+              <feMerge>
+                <feMergeNode in="blur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+          <!-- المسار الخلفي -->
+          <circle cx="150" cy="150" r="110" fill="none"
+                  stroke="rgba(128, 140, 170, 0.18)" stroke-width="12"
+                  stroke-dasharray="518.36 691.15"
+                  transform="rotate(135 150 150)" stroke-linecap="round"/>
+          <!-- القوس الملوّن (progress) -->
+          <circle id="gaugeProgress" cx="150" cy="150" r="110" fill="none"
+                  stroke="#00ff88" stroke-width="12"
+                  stroke-dasharray="0 9999"
+                  transform="rotate(135 150 150)" stroke-linecap="round"
+                  filter="url(#glow)"/>
+          <!-- علامات التدريج -->
+          <g id="ticks"></g>
+          <!-- المؤشر -->
+          <g id="needle" transform="rotate(-135 150 150)">
+            <line x1="150" y1="150" x2="150" y2="62" stroke="#00ff88"
+                  stroke-width="3.5" stroke-linecap="round"/>
+          </g>
+          <!-- المحور -->
+          <circle id="needleHub" cx="150" cy="150" r="8"
+                  fill="#0f1520" stroke="#00ff88" stroke-width="2.5"/>
+        </svg>
+
+        <div class="gauge-center">
+          <div class="speed-value" id="speedValue">0</div>
+          <div class="speed-unit" id="speedUnit">كم/س</div>
+          <div class="gps-status" id="gpsStatus">
+            <span class="dot"></span>
+            <span id="gpsStatusText">غير متصل</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="btn-primary" id="startBtn">
+          <i class="fas fa-play"></i>
+          <span>بدء</span>
+        </button>
+        <button class="btn-ghost" id="resetBtn">
+          <i class="fas fa-redo"></i>
+          إعادة
+        </button>
+      </div>
+    </section>
+
+    <!-- الإحصائيات -->
+    <aside class="stats-grid">
+      <div class="stat-card glass">
+        <i class="fas fa-road stat-icon"></i>
+        <div class="stat-value" id="distance">0.00</div>
+        <div class="stat-label">المسافة (كم)</div>
+      </div>
+      <div class="stat-card glass">
+        <i class="fas fa-bolt stat-icon"></i>
+        <div class="stat-value" id="maxSpeed">0</div>
+        <div class="stat-label">السرعة القصوى</div>
+      </div>
+      <div class="stat-card glass">
+        <i class="fas fa-chart-line stat-icon"></i>
+        <div class="stat-value" id="avgSpeed">0</div>
+        <div class="stat-label">المتوسطة</div>
+      </div>
+      <div class="stat-card glass">
+        <i class="fas fa-clock stat-icon"></i>
+        <div class="stat-value" id="timer">00:00</div>
+        <div class="stat-label">الوقت</div>
+      </div>
+      <div class="stat-card glass">
+        <i class="fas fa-mountain stat-icon"></i>
+        <div class="stat-value" id="altitude">--</div>
+        <div class="stat-label">الارتفاع (م)</div>
+      </div>
+      <div class="stat-card glass" id="compassCard" style="cursor:pointer">
+        <i class="fas fa-compass stat-icon"></i>
+        <div class="stat-value" id="compass">--</div>
+        <div class="stat-label">البوصلة</div>
+      </div>
+      <div class="stat-card glass">
+        <i class="fas fa-satellite-dish stat-icon"></i>
+        <div class="stat-value" id="accuracy">--</div>
+        <div class="stat-label">الدقة (م)</div>
+      </div>
+      <div class="stat-card glass">
+        <i class="fas fa-mobile-alt stat-icon"></i>
+        <div class="stat-value" id="wakeLockStatus" style="font-size:15px">-</div>
+        <div class="stat-label">الشاشة</div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- الخريطة + الرسم البياني -->
+  <section class="bottom-grid">
+    <div class="card glass">
+      <div class="card-title">
+        <i class="fas fa-map-marked-alt"></i>
+        المسار الحالي
+      </div>
+      <div id="map"></div>
+    </div>
+
+    <div class="card glass chart-card">
+      <div class="card-title">
+        <i class="fas fa-chart-area"></i>
+        السرعة اللحظية
+      </div>
+      <div class="chart-wrapper">
+        <canvas id="chart"></canvas>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     Toasts
+     ═══════════════════════════════════════════ -->
+<div class="toasts" id="toasts"></div>
+
+<!-- ═══════════════════════════════════════════
+     Modal السجل
+     ═══════════════════════════════════════════ -->
+<div class="overlay hidden" id="historyModal">
+  <div class="modal glass">
+    <div class="modal-header">
+      <h3><i class="fas fa-history" style="color:var(--cyan);margin-left:8px"></i> الرحلات السابقة</h3>
+      <button class="icon-btn" id="closeHistory">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="history-list" id="historyList"></div>
+    <button class="btn-danger" id="clearHistory">
+      <i class="fas fa-trash"></i> مسح جميع الرحلات
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     مكتبات خارجية
+     ═══════════════════════════════════════════ -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   سبيدو مِتر - الكود الأساسي
+   ═══════════════════════════════════════════════════════════════ */
+
+// ─────────── الحالة العامة ───────────
+const state = {
+  theme: localStorage.getItem('sm_theme') || 'dark',
+  unit: localStorage.getItem('sm_unit') || 'kmh',
+  isTracking: false,
+  watchId: null,
+  startTime: null,
+  elapsed: 0,
+  distance: 0,          // بالكيلومتر
+  maxSpeed: 0,          // كم/س
+  path: [],             // [[lat,lng],...]
+  speedHistory: [],     // [{t,s}]
+  targetSpeed: 0,       // كم/س - الهدف
+  displayedSpeed: 0,    // كم/س - المعروض (بعد التنعيم)
+  lastAlertTime: 0,
+  wakeLock: null,
+  history: JSON.parse(localStorage.getItem('sm_trips') || '[]'),
+  lastPos: null,
+  lastPosTime: null,
+};
+
+// ثوابت
+const GAUGE_MAX_KMH = 240;
+const GAUGE_MAX_MPH = 150;
+const ARC_LEN_270 = 518.36; // 270° من محيط دائرة نصف قطرها 110
+const SPEED_LIMIT = 120;    // كم/س - حد التنبيه
+
+// ─────────── مراجع DOM ───────────
+const $ = id => document.getElementById(id);
+
+// ═══════════════════════════════════════════════════════════════
+// أدوات مساعدة
+// ═══════════════════════════════════════════════════════════════
+
+/** صياغة الوقت من الثواني */
+function formatTime(sec) {
+  if (!sec || sec < 0) return '00:00';
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = Math.floor(sec % 60);
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+/** حساب المسافة بين نقطتين بالمتر */
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const toRad = x => x * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+/** لون السرعة حسب النطاق */
+function getSpeedColor(kmh) {
+  if (kmh < 40) return '#00ff88';
+  if (kmh < 80) return '#ffd700';
+  if (kmh < 120) return '#ff8c00';
+  return '#ff2e63';
+}
+
+/** الوقت المنقضي بالثواني */
+function getElapsed() {
+  if (!state.startTime) return 0;
+  return Math.floor((Date.now() - state.startTime) / 1000);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Toast Notifications
+// ═══════════════════════════════════════════════════════════════
+function toast(message, type = 'info') {
+  const container = $('toasts');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  const icons = {
+    success: 'fa-check-circle',
+    error: 'fa-exclamation-circle',
+    warn: 'fa-exclamation-triangle',
+    info: 'fa-info-circle'
+  };
+  el.innerHTML = `<i class="fas ${icons[type] || icons.info}"></i> <span>${message}</span>`;
+  container.appendChild(el);
+  setTimeout(() => {
+    el.classList.add('hide');
+    setTimeout(() => el.remove(), 420);
+  }, 3500);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// الثيم
+// ═══════════════════════════════════════════════════════════════
+function applyTheme(theme) {
+  state.theme = theme;
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('sm_theme', theme);
+  const icon = $('themeBtn').querySelector('i');
+  icon.className = theme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+  if (typeof updateMapTiles === 'function') updateMapTiles();
+  if (chart) updateChartTheme();
+}
+
+function toggleTheme() {
+  applyTheme(state.theme === 'dark' ? 'light' : 'dark');
+  toast(`تم تفعيل الوضع ${state.theme === 'dark' ? 'الداكن' : 'الفاتح'}`, 'info');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// الوحدة (كم/س ↔ ميل/س)
+// ═══════════════════════════════════════════════════════════════
+function toggleUnit() {
+  state.unit = state.unit === 'kmh' ? 'mph' : 'kmh';
+  localStorage.setItem('sm_unit', state.unit);
+  $('unitBtn').textContent = state.unit === 'kmh' ? 'كم/س' : 'ميل/س';
+  $('speedUnit').textContent = state.unit === 'kmh' ? 'كم/س' : 'ميل/س';
+  updateTickLabels();
+  updateStatsDisplay();
+  toast(state.unit === 'kmh' ? 'الوحدة: كم/س' : 'الوحدة: ميل/س', 'info');
+}
+
+/** معامل التحويل */
+function unitFactor() { return state.unit === 'mph' ? 0.621371 : 1; }
+function unitMax() { return state.unit === 'mph' ? GAUGE_MAX_MPH : GAUGE_MAX_KMH; }
+
+// ═══════════════════════════════════════════════════════════════
+// علامات العدّاد
+// ═══════════════════════════════════════════════════════════════
+function generateTicks() {
+  const group = $('ticks');
+  const cx = 150, cy = 150;
+  const tickCount = 7;
+
+  for (let i = 0; i < tickCount; i++) {
+    const progress = i / (tickCount - 1);
+    const angle = 135 + progress * 270;
+    const rad = angle * Math.PI / 180;
+
+    // علامة التدريج
+    const outerR = 96, innerR = 88;
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', cx + outerR * Math.cos(rad));
+    line.setAttribute('y1', cy + outerR * Math.sin(rad));
+    line.setAttribute('x2', cx + innerR * Math.cos(rad));
+    line.setAttribute('y2', cy + innerR * Math.sin(rad));
+    line.setAttribute('class', 'tick-mark');
+    group.appendChild(line);
+
+    // التسمية الرقمية
+    const labelR = 76;
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', cx + labelR * Math.cos(rad));
+    text.setAttribute('y', cy + labelR * Math.sin(rad));
+    text.setAttribute('class', 'tick-label');
+    text.dataset.progress = progress;
+    group.appendChild(text);
+  }
+  updateTickLabels();
+}
+
+function updateTickLabels() {
+  const maxVal = unitMax();
+  document.querySelectorAll('.tick-label').forEach(text => {
+    const p = parseFloat(text.dataset.progress);
+    text.textContent = Math.round(p * maxVal);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// العدّاد (Rendering Loop)
+// ═══════════════════════════════════════════════════════════════
+function animateLoop() {
+  // تنعيم السرعة (lerp)
+  const diff = state.targetSpeed - state.displayedSpeed;
+  if (Math.abs(diff) > 0.03) {
+    state.displayedSpeed += diff * 0.18;
+  } else {
+    state.displayedSpeed = state.targetSpeed;
+  }
+  updateGaugeVisual();
+  requestAnimationFrame(animateLoop);
+}
+
+function updateGaugeVisual() {
+  const factor = unitFactor();
+  const maxVal = unitMax();
+  const displayVal = state.displayedSpeed * factor;
+  const progress = Math.max(0, Math.min(1, displayVal / maxVal));
+
+  // المؤشر
+  const angle = -135 + progress * 270;
+  $('needle').setAttribute('transform', `rotate(${angle} 150 150)`);
+
+  // القوس
+  const arcLen = progress * ARC_LEN_270;
+  $('gaugeProgress').setAttribute('stroke-dasharray', `${arcLen} 9999`);
+
+  // الرقم
+  $('speedValue').textContent = Math.round(displayVal);
+
+  // اللون حسب السرعة (بالكم/س)
+  const color = getSpeedColor(state.displayedSpeed);
+  $('gaugeProgress').setAttribute('stroke', color);
+  $('needle').querySelector('line').setAttribute('stroke', color);
+  $('needleHub').setAttribute('stroke', color);
+  $('speedValue').style.color = color;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// الحالة GPS
+// ═══════════════════════════════════════════════════════════════
+function updateGPSStatus(status, text) {
+  const el = $('gpsStatus');
+  el.className = 'gps-status' + (status ? ' ' + status : '');
+  $('gpsStatusText').textContent = text;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// معالجة تحديثات الموقع
+// ═══════════════════════════════════════════════════════════════
+function handlePosition(pos) {
+  const coords = pos.coords;
+  const now = pos.timestamp || Date.now();
+
+  // ─── حساب السرعة ───
+  let speedMs = null;
+  if (coords.speed != null && !isNaN(coords.speed) && coords.speed >= 0) {
+    speedMs = coords.speed;
+  } else if (state.lastPos && state.lastPosTime) {
+    const dt = (now - state.lastPosTime) / 1000;
+    if (dt > 0.15) {
+      const dist = haversine(state.lastPos.lat, state.lastPos.lng, coords.latitude, coords.longitude);
+      speedMs = dist / dt;
+    }
+  }
+  const speedKmh = Math.max(0, (speedMs || 0) * 3.6);
+
+  // ─── المسافة المقطوعة ───
+  if (state.lastPos && state.isTracking) {
+    const d = haversine(state.lastPos.lat, state.lastPos.lng, coords.latitude, coords.longitude);
+    // تصفية الضوضاء (قفزات GPS)
+    if (d > 1.5 && d < 800) {
+      state.distance += d / 1000;
+    }
+  }
+
+  // ─── السرعة القصوى ───
+  if (speedKmh > state.maxSpeed) state.maxSpeed = speedKmh;
+
+  // ─── المسار ───
+  state.path.push([coords.latitude, coords.longitude]);
+
+  // ─── السرعة المستهدفة ───
+  state.targetSpeed = speedKmh;
+
+  // ─── سجل السرعة ───
+  state.speedHistory.push({ t: now, s: speedKmh });
+
+  // ─── الإحصائيات ───
+  updateStatsDisplay(coords);
+
+  // ─── الخريطة ───
+  updateMapPosition(coords);
+
+  // ─── تنبيه السرعة ───
+  if (speedKmh > SPEED_LIMIT) triggerSpeedAlert();
+
+  // ─── حفظ آخر موقع ───
+  state.lastPos = { lat: coords.latitude, lng: coords.longitude };
+  state.lastPosTime = now;
+
+  // ─── حالة GPS ───
+  const acc = coords.accuracy ? Math.round(coords.accuracy) : '?';
+  updateGPSStatus('active', `دقة ${acc}م`);
+}
+
+/** معالجة أخطاء GPS */
+function handleGPSError(err) {
+  let msg = 'خطأ في تحديد الموقع';
+  switch (err.code) {
+    case 1: msg = 'تم رفض إذن الوصول للموقع'; break;
+    case 2: msg = 'تعذر تحديد الموقع - تحقق من الإشارة'; break;
+    case 3: msg = 'انتهت مهلة تحديد الموقع - جاري إعادة المحاولة'; break;
+    default: msg = err.message || 'خطأ غير معروف';
+  }
+  updateGPSStatus('error', 'خطأ في GPS');
+  toast(msg, 'error');
+  // لا نوقف التتبع تلقائياً - قد يكون خطأ مؤقت
+}
+
+/** اهتزاز تحذيري عند تجاوز الحد */
+function triggerSpeedAlert() {
+  const now = Date.now();
+  if (now - state.lastAlertTime < 6000) return;
+  state.lastAlertTime = now;
+  if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
+  toast(`⚠️ تجاوزت الحد القانوني ${SPEED_LIMIT} كم/س!`, 'warn');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// تحديث الإحصائيات
+// ═══════════════════════════════════════════════════════════════
+function updateStatsDisplay(coords) {
+  $('distance').textContent = state.distance.toFixed(2);
+  $('maxSpeed').textContent = Math.round(state.maxSpeed * unitFactor());
+
+  const elapsed = getElapsed();
+  state.elapsed = elapsed;
+  const avg = (elapsed > 0 && state.distance > 0)
+    ? (state.distance / (elapsed / 3600))
+    : 0;
+  $('avgSpeed').textContent = Math.round(avg * unitFactor());
+
+  $('timer').textContent = formatTime(elapsed);
+
+  if (coords) {
+    $('altitude').textContent = (coords.altitude != null)
+      ? Math.round(coords.altitude) : '--';
+    $('accuracy').textContent = (coords.accuracy != null)
+      ? Math.round(coords.accuracy) : '--';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// الخريطة (Leaflet)
+// ═══════════════════════════════════════════════════════════════
+let map, polyline, marker, tileLayer, mapInitialized = false;
+
+function initMap() {
+  if (mapInitialized) return;
+  try {
+    map = L.map('map', {
+      zoomControl: false,
+      attributionControl: false,
+      preferCanvas: true
+    }).setView([24.7136, 46.6753], 5);
+
+    updateMapTiles();
+
+    polyline = L.polyline([], {
+      color: '#00e5ff',
+      weight: 4,
+      opacity: 0.9,
+      lineJoin: 'round'
+    }).addTo(map);
+
+    marker = L.circleMarker([24.7136, 46.6753], {
+      radius: 8,
+      fillColor: '#00e5ff',
+      fillOpacity: 1,
+      color: '#ffffff',
+      weight: 3
+    }).addTo(map);
+
+    mapInitialized = true;
+  } catch (e) {
+    console.warn('Map init failed:', e);
+  }
+}
+
+function updateMapTiles() {
+  if (!map) return;
+  if (tileLayer) map.removeLayer(tileLayer);
+  const url = state.theme === 'light'
+    ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+    : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+  tileLayer = L.tileLayer(url, {
+    maxZoom: 19,
+    subdomains: 'abcd',
+    attribution: ''
+  }).addTo(map);
+}
+
+function updateMapPosition(coords) {
+  if (!mapInitialized) return;
+  const latlng = [coords.latitude, coords.longitude];
+
+  if (state.path.length === 1) {
+    map.setView(latlng, 17);
+  } else {
+    map.panTo(latlng, { animate: true, duration: 0.5 });
+  }
+  polyline.addLatLng(latlng);
+  marker.setLatLng(latlng);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// الرسم البياني (Chart.js)
+// ═══════════════════════════════════════════════════════════════
+let chart;
+
+function initChart() {
+  const ctx = $('chart').getContext('2d');
+  const gradient = ctx.createLinearGradient(0, 0, 0, 320);
+  gradient.addColorStop(0, 'rgba(0, 229, 255, 0.45)');
+  gradient.addColorStop(1, 'rgba(0, 229, 255, 0)');
+
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        data: [],
+        borderColor: '#00e5ff',
+        backgroundColor: gradient,
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 0,
+        pointHoverRadius: 0,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      interaction: { mode: 'none' },
+      scales: {
+        x: {
+          display: false,
+          grid: { display: false }
+        },
+        y: {
+          beginAtZero: true,
+          suggestedMax: 120,
+          grid: {
+            color: state.theme === 'dark'
+              ? 'rgba(255,255,255,0.06)'
+              : 'rgba(10,14,26,0.06)',
+            drawTicks: false
+          },
+          ticks: {
+            color: state.theme === 'dark' ? '#8892a8' : '#5a6478',
+            font: { family: 'Orbitron', size: 10 },
+            padding: 8,
+            maxTicksLimit: 5
+          },
+          border: { display: false }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { enabled: false }
+      }
+    }
+  });
+
+  // تحديث كل ثانية
+  setInterval(updateChart, 1000);
+}
+
+function updateChart() {
+  if (!chart) return;
+  const factor = unitFactor();
+  chart.data.labels.push('');
+  chart.data.datasets[0].data.push(Number((state.targetSpeed * factor).toFixed(1)));
+  if (chart.data.datasets[0].data.length > 60) {
+    chart.data.datasets[0].data.shift();
+    chart.data.labels.shift();
+  }
+  chart.update('none');
+}
+
+function updateChartTheme() {
+  if (!chart) return;
+  const gridColor = state.theme === 'dark'
+    ? 'rgba(255,255,255,0.06)' : 'rgba(10,14,26,0.06)';
+  const tickColor = state.theme === 'dark' ? '#8892a8' : '#5a6478';
+  chart.options.scales.y.grid.color = gridColor;
+  chart.options.scales.y.ticks.color = tickColor;
+  chart.update('none');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// البوصلة
+// ═══════════════════════════════════════════════════════════════
+let lastHeading = 0;
+let compassActive = false;
+
+function initCompass() {
+  const handler = e => handleOrientation(e);
+
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    // iOS يحتاج إذن من إجراء مستخدم
+    DeviceOrientationEvent.requestPermission().then(perm => {
+      if (perm === 'granted') {
+        window.addEventListener('deviceorientation', handler, true);
+        compassActive = true;
+        toast('تم تفعيل البوصلة', 'success');
+      } else {
+        toast('لم يتم منح إذن البوصلة', 'warn');
+      }
+    }).catch(() => {
+      toast('تعذر تفعيل البوصلة', 'error');
+    });
+    return;
+  }
+
+  if ('ondeviceorientationabsolute' in window) {
+    window.addEventListener('deviceorientationabsolute', handler, true);
+    compassActive = true;
+  } else if ('ondeviceorientation' in window) {
+    window.addEventListener('deviceorientation', handler, true);
+    compassActive = true;
+  } else {
+    $('compass').textContent = 'غير مدعوم';
+  }
+}
+
+function handleOrientation(e) {
+  let heading = null;
+  if (e.webkitCompassHeading != null && !isNaN(e.webkitCompassHeading)) {
+    heading = e.webkitCompassHeading;
+  } else if (e.alpha != null && !isNaN(e.alpha)) {
+    heading = 360 - e.alpha;
+  }
+  if (heading == null) return;
+  if (heading < 0) heading += 360;
+
+  // تنعيم
+  let diff = heading - lastHeading;
+  if (diff > 180) diff -= 360;
+  if (diff < -180) diff += 360;
+  lastHeading += diff * 0.25;
+
+  // اتجاهات عربية مختصرة
+  const dirs = ['ش', 'ش.شر', 'شر', 'ج.شر', 'ج', 'ج.غر', 'غر', 'ش.غر'];
+  const idx = Math.round(((lastHeading % 360) + 360) % 360 / 45) % 8;
+  $('compass').textContent = `${Math.round(lastHeading)}° ${dirs[idx]}`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Wake Lock
+// ═══════════════════════════════════════════════════════════════
+async function requestWakeLock() {
+  if (!('wakeLock' in navigator)) {
+    $('wakeLockStatus').textContent = 'غير مدعوم';
+    return;
+  }
+  try {
+    state.wakeLock = await navigator.wakeLock.request('screen');
+    $('wakeLockStatus').textContent = 'مفعلة';
+    state.wakeLock.addEventListener('release', () => {
+      $('wakeLockStatus').textContent = 'معطلة';
+    });
+  } catch (err) {
+    $('wakeLockStatus').textContent = 'فشل';
+  }
+}
+
+function releaseWakeLock() {
+  if (state.wakeLock) {
+    state.wakeLock.release().catch(() => {});
+    state.wakeLock = null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// بدء / إيقاف / إعادة تعيين
+// ═══════════════════════════════════════════════════════════════
+async function startTracking() {
+  if (state.isTracking) return;
+
+  // التحقق من HTTPS
+  const isSecure = location.protocol === 'https:' ||
+                   location.hostname === 'localhost' ||
+                   location.hostname === '127.0.0.1';
+  if (!isSecure) {
+    toast('⚠️ يتطلب GPS اتصالاً آمناً (HTTPS)', 'error');
+    return;
+  }
+
+  if (!navigator.geolocation) {
+    toast('متصفحك لا يدعم تحديد الموقع', 'error');
+    return;
+  }
+
+  state.isTracking = true;
+  state.startTime = Date.now();
+  state.lastPos = null;
+  state.lastPosTime = null;
+  updateStartBtn();
+  updateGPSStatus('searching', 'جاري البحث عن إشارة...');
+
+  // Wake Lock
+  requestWakeLock();
+
+  // بدء المراقبة
+  try {
+    state.watchId = navigator.geolocation.watchPosition(
+      handlePosition,
+      handleGPSError,
+      {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 5000
+      }
+    );
+    toast('بدأ التتبع - في انتظار إشارة GPS', 'success');
+  } catch (e) {
+    toast('تعذر بدء التتبع', 'error');
+    state.isTracking = false;
+    updateStartBtn();
+  }
+}
+
+function stopTracking(save = true) {
+  if (!state.isTracking) return;
+  state.isTracking = false;
+
+  if (state.watchId !== null) {
+    navigator.geolocation.clearWatch(state.watchId);
+    state.watchId = null;
+  }
+  releaseWakeLock();
+  updateGPSStatus('', 'متوقف');
+  updateStartBtn();
+  toast('تم إيقاف التتبع', 'info');
+
+  // حفظ تلقائي
+  if (save && state.distance > 0.05 && state.elapsed > 5) {
+    saveCurrentTrip();
+  }
+}
+
+function resetTrip() {
+  if (state.isTracking) stopTracking(false);
+
+  state.distance = 0;
+  state.maxSpeed = 0;
+  state.elapsed = 0;
+  state.path = [];
+  state.speedHistory = [];
+  state.targetSpeed = 0;
+  state.displayedSpeed = 0;
+  state.startTime = null;
+  state.lastPos = null;
+  state.lastPosTime = null;
+  state.lastAlertTime = 0;
+
+  $('distance').textContent = '0.00';
+  $('maxSpeed').textContent = '0';
+  $('avgSpeed').textContent = '0';
+  $('timer').textContent = '00:00';
+  $('altitude').textContent = '--';
+  $('accuracy').textContent = '--';
+  $('speedValue').textContent = '0';
+  updateGPSStatus('', 'غير متصل');
+
+  if (polyline) polyline.setLatLngs([]);
+  if (chart) {
+    chart.data.labels = [];
+    chart.data.datasets[0].data = [];
+    chart.update('none');
+  }
+
+  toast('تمت إعادة تعيين الرحلة', 'info');
+}
+
+function updateStartBtn() {
+  const btn = $('startBtn');
+  if (state.isTracking) {
+    btn.innerHTML = '<i class="fas fa-stop"></i><span>إيقاف</span>';
+    btn.style.background = 'linear-gradient(135deg, #ff2e63, #ff8c00)';
+    btn.style.boxShadow = '0 4px 24px rgba(255, 46, 99, 0.4)';
+  } else {
+    btn.innerHTML = '<i class="fas fa-play"></i><span>بدء</span>';
+    btn.style.background = '';
+    btn.style.boxShadow = '';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// السجل (localStorage)
+// ═══════════════════════════════════════════════════════════════
+function saveCurrentTrip() {
+  if (state.distance < 0.01 && state.elapsed < 5) {
+    return;
+  }
+  const elapsed = state.elapsed || getElapsed();
+  const trip = {
+    date: Date.now(),
+    distance: Number(state.distance.toFixed(2)),
+    maxSpeed: Math.round(state.maxSpeed),
+    avgSpeed: elapsed > 0 ? Math.round((state.distance / (elapsed / 3600))) : 0,
+    duration: elapsed
+  };
+  state.history.unshift(trip);
+  if (state.history.length > 50) state.history.pop();
+  localStorage.setItem('sm_trips', JSON.stringify(state.history));
+  toast('تم حفظ الرحلة تلقائياً', 'success');
+}
+
+function saveTripManually() {
+  if (state.distance < 0.01) {
+    toast('لا توجد بيانات كافية للحفظ', 'warn');
+    return;
+  }
+  saveCurrentTrip();
+}
+
+function showHistory() {
+  const modal = $('historyModal');
+  const list = $('historyList');
+  list.innerHTML = '';
+
+  if (state.history.length === 0) {
+    list.innerHTML = `
+      <div class="empty-history">
+        <i class="fas fa-route"></i>
+        لا توجد رحلات محفوظة بعد.<br>
+        ابدأ التتبع وستُحفظ رحلتك تلقائياً عند الإيقاف.
+      </div>`;
+  } else {
+    state.history.forEach(trip => {
+      const d = new Date(trip.date);
+      const dateStr = d.toLocaleDateString('ar', {
+        year: 'numeric', month: 'short', day: 'numeric'
+      });
+      const timeStr = d.toLocaleTimeString('ar', {
+        hour: '2-digit', minute: '2-digit'
+      });
+
+      const div = document.createElement('div');
+      div.className = 'history-item';
+      div.innerHTML = `
+        <div class="history-item-header">
+          <span><i class="fas fa-calendar" style="opacity:.6;margin-left:4px"></i>${dateStr}</span>
+          <span><i class="fas fa-clock" style="opacity:.6;margin-left:4px"></i>${timeStr}</span>
+        </div>
+        <div class="history-item-stats">
+          <div>
+            <div class="history-stat-val">${trip.distance.toFixed(2)}</div>
+            <div class="history-stat-lbl">كم</div>
+          </div>
+          <div>
+            <div class="history-stat-val">${Math.round(trip.maxSpeed * unitFactor())}</div>
+            <div class="history-stat-lbl">أقصى سرعة</div>
+          </div>
+          <div>
+            <div class="history-stat-val">${formatTime(trip.duration)}</div>
+            <div class="history-stat-lbl">المدة</div>
+          </div>
+        </div>
+      `;
+      list.appendChild(div);
+    });
+  }
+  modal.classList.remove('hidden');
+}
+
+function clearHistory() {
+  if (state.history.length === 0) return;
+  if (!confirm('هل تريد مسح جميع الرحلات المحفوظة؟')) return;
+  state.history = [];
+  localStorage.removeItem('sm_trips');
+  showHistory();
+  toast('تم مسح السجل', 'success');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// المشاركة
+// ═══════════════════════════════════════════════════════════════
+async function shareTrip() {
+  const elapsed = state.elapsed || getElapsed();
+  const avg = elapsed > 0 ? (state.distance / (elapsed / 3600)) : 0;
+  const factor = unitFactor();
+  const unitLabel = state.unit === 'kmh' ? 'كم/س' : 'ميل/س';
+
+  const summary = `🚗 سبيدو مِتر - ملخص الرحلة
+━━━━━━━━━━━━━━━━
+📍 المسافة: ${state.distance.toFixed(2)} كم
+⚡ السرعة القصوى: ${Math.round(state.maxSpeed * factor)} ${unitLabel}
+📊 المتوسطة: ${Math.round(avg * factor)} ${unitLabel}
+⏱️ الوقت: ${formatTime(elapsed)}
+━━━━━━━━━━━━━━━━
+تم بواسطة SpeedoMeter`;
+
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: 'سبيدو مِتر - ملخص الرحلة',
+        text: summary
+      });
+      toast('تمت المشاركة', 'success');
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        // نسخ كبديل
+        try {
+          await navigator.clipboard.writeText(summary);
+          toast('تم نسخ الملخص للحافظة', 'success');
+        } catch {
+          toast('تعذر المشاركة', 'error');
+        }
+      }
+    }
+  } else {
+    try {
+      await navigator.clipboard.writeText(summary);
+      toast('تم نسخ الملخص للحافظة', 'success');
+    } catch {
+      toast('المشاركة غير مدعومة', 'error');
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PWA: Manifest ديناميكي + Service Worker
+// ═══════════════════════════════════════════════════════════════
+function injectManifest() {
+  // أيقونة SVG مدمجة
+  const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+    <defs>
+      <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#00e5ff"/>
+        <stop offset="100%" stop-color="#b968ff"/>
+      </linearGradient>
+    </defs>
+    <rect width="512" height="512" fill="#0a0e1a" rx="96"/>
+    <circle cx="256" cy="256" r="180" fill="none" stroke="url(#g)" stroke-width="22"
+            stroke-dasharray="848 130" stroke-linecap="round" transform="rotate(135 256 256)"/>
+    <circle cx="256" cy="256" r="22" fill="#00e5ff"/>
+    <line x1="256" y1="256" x2="256" y2="130" stroke="#00e5ff" stroke-width="10" stroke-linecap="round"
+          transform="rotate(45 256 256)"/>
+    <text x="256" y="320" text-anchor="middle" fill="#00e5ff"
+          font-family="Arial Black, sans-serif" font-size="72" font-weight="900">S</text>
+  </svg>`;
+  const iconUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(iconSvg)));
+
+  const manifest = {
+    name: 'سبيدو مِتر - SpeedoMeter',
+    short_name: 'سبيدو مِتر',
+    description: 'عدّاد سرعة GPS احترافي بتصميم عصري',
+    start_url: '.',
+    scope: '.',
+    display: 'standalone',
+    orientation: 'portrait',
+    background_color: '#0a0e1a',
+    theme_color: '#0a0e1a',
+    lang: 'ar',
+    dir: 'rtl',
+    icons: [
+      { src: iconUrl, sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' }
+    ]
+  };
+
+  const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+  const link = document.createElement('link');
+  link.rel = 'manifest';
+  link.href = URL.createObjectURL(blob);
+  document.head.appendChild(link);
+
+  // أيقونة آبل
+  const appleLink = document.createElement('link');
+  appleLink.rel = 'apple-touch-icon';
+  appleLink.href = iconUrl;
+  document.head.appendChild(appleLink);
+}
+
+function registerServiceWorker() {
+  // Service Worker يحتاج ملفاً منفصلاً - نتخطاه هنا مع الحفاظ على إمكانية التثبيت
+  // (Chrome يشترط SW للتثبيت الكامل، لكن "الإضافة إلى الشاشة الرئيسية" تعمل بالـ manifest)
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    // يمكنك لاحقاً إضافة ملف sw.js منفصل
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// التهيئة
+// ═══════════════════════════════════════════════════════════════
+
+// تحقق من الإذن
+async function checkPermission() {
+  try {
+    if (navigator.permissions && navigator.permissions.query) {
+      const r = await navigator.permissions.query({ name: 'geolocation' });
+      return r.state;
+    }
+  } catch (e) {}
+  return 'prompt';
+}
+
+// تشغيل المؤقت كل ثانية
+setInterval(() => {
+  if (state.isTracking) {
+    state.elapsed = getElapsed();
+    $('timer').textContent = formatTime(state.elapsed);
+    // تحديث متوسط السرعة
+    const avg = state.elapsed > 0 ? (state.distance / (state.elapsed / 3600)) : 0;
+    $('avgSpeed').textContent = Math.round(avg * unitFactor());
+  }
+}, 1000);
+
+// الربط بالأحداث
+function bindEvents() {
+  $('themeBtn').addEventListener('click', toggleTheme);
+  $('unitBtn').addEventListener('click', toggleUnit);
+  $('historyBtn').addEventListener('click', showHistory);
+  $('shareBtn').addEventListener('click', shareTrip);
+
+  $('startBtn').addEventListener('click', () => {
+    if (state.isTracking) {
+      stopTracking(true);
+    } else {
+      startTracking();
+    }
+  });
+
+  $('resetBtn').addEventListener('click', resetTrip);
+
+  $('closeHistory').addEventListener('click', () => {
+    $('historyModal').classList.add('hidden');
+  });
+
+  $('historyModal').addEventListener('click', (e) => {
+    if (e.target.id === 'historyModal') {
+      $('historyModal').classList.add('hidden');
+    }
+  });
+
+  $('clearHistory').addEventListener('click', clearHistory);
+
+  $('startWelcome').addEventListener('click', () => {
+    $('welcome').classList.add('hidden');
+    startTracking();
+  });
+
+  $('skipWelcome').addEventListener('click', () => {
+    $('welcome').classList.add('hidden');
+  });
+
+  $('compassCard').addEventListener('click', () => {
+    if (!compassActive) initCompass();
+  });
+
+  // إعادة طلب Wake Lock عند العودة للصفحة
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && state.isTracking && !state.wakeLock) {
+      requestWakeLock();
+    }
+  });
+}
+
+// التهيئة النهائية عند التحميل
+window.addEventListener('load', async () => {
+  // الثيم
+  applyTheme(state.theme);
+  $('unitBtn').textContent = state.unit === 'kmh' ? 'كم/س' : 'ميل/س';
+  $('speedUnit').textContent = state.unit === 'kmh' ? 'كم/س' : 'ميل/س';
+
+  // Manifest
+  injectManifest();
+  registerServiceWorker();
+
+  // ربط الأحداث
+  bindEvents();
+
+  // إخفاء شاشة التحميل بعد تأخير بسيط
+  setTimeout(async () => {
+    $('splash').classList.add('hidden');
+    $('app').classList.remove('hidden');
+
+    // تهيئة المكونات (بعد ظهور التطبيق)
+    try { initChart(); } catch (e) { console.warn(e); }
+    try { initMap(); } catch (e) { console.warn(e); }
+    generateTicks();
+
+    // حلقة الرسم
+    requestAnimationFrame(animateLoop);
+
+    // التحقق من إذن الموقع
+    const perm = await checkPermission();
+    if (perm !== 'granted') {
+      $('welcome').classList.remove('hidden');
+    } else {
+      // إذا كان الإذن ممنوحاً مسبقاً، اقترح البدء تلقائياً
+      setTimeout(() => {
+        if (!state.isTracking) {
+          // لا نبدأ تلقائياً - نحترم رغبة المستخدم
+        }
+      }, 500);
+    }
+  }, 1700);
+});
+
+// تنظيف عند إغلاق الصفحة
+window.addEventListener('beforeunload', () => {
+  if (state.watchId !== null) {
+    navigator.geolocation.clearWatch(state.watchId);
+  }
+  releaseWakeLock();
+});
+
+// دعم مفاتيح الاختصار (اختياري)
+document.addEventListener('keydown', (e) => {
+  if (e.target.matches('input, textarea')) return;
+  if (e.key === ' ' || e.key === 'Spacebar') {
+    e.preventDefault();
+    if (state.isTracking) stopTracking(true);
+    else startTracking();
+  } else if (e.key === 'r' || e.key === 'R') {
+    resetTrip();
+  }
+});
+
+</script>
+</body>
+</html>
